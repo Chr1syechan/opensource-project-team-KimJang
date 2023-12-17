@@ -11,56 +11,66 @@ model.eval()
 # 카메라 열기 (일반적으로 0은 내장 웹캠을 나타냄)
 cap = cv2.VideoCapture(0)
 
-path = []
-drawing = False  # 'd' 키를 누르고 있는 동안만 그림 그리기
+path=[]
+d = False
+hand = True
 
-def draw(event, x, y, flags, param):
-    global drawing
+while cap.isOpened():
+    # 프레임 읽기
+    ret, frame = cap.read()
+    if not ret:
+        break
 
-    if event == cv2.EVENT_LBUTTONDOWN and param == ord('d'):
-        drawing = True
-        path.append((x, y))
+    # YOLOv5 객체 검출
+    with torch.no_grad():
+        results = model(frame)
 
-    elif event == cv2.EVENT_LBUTTONUP:
-        drawing = False
+    # 결과 가져오기
+    pred = results.pred[0]
 
-    cv2.namedWindow('pen tracking')
-    cv2.setMouseCallback('pen tracking', draw)
+    if d:
+        if hand:
+            for det in pred:
+                cls, bbox = int(det[5].item()), det[:4].tolist()
+                x1, y1, x2, y2 = map(int, bbox)  # bbox는 [x_min, y_min, x_max, y_max] 형식의 좌표를 가지고 있음
 
-    while cap.isOpened():
-        # 프레임 읽기
-        ret, frame = cap.read()
-        if not ret:
-            break
+                if model.names[cls] == 'Pen':
+                    path.append((x2, y2))
+        elif not hand:
+            for det in pred:
+                cls, bbox = int(det[5].item()), det[:4].tolist()
+                x1, y1, x2, y2 = map(int, bbox)  # bbox는 [x_min, y_min, x_max, y_max] 형식의 좌표를 가지고 있음
 
-        # YOLOv5 객체 검출
-        with torch.no_grad():
-            results = model(frame)
+                if model.names[cls] == 'Pen':
+                    path.append((x1, y2))
 
-        # 결과 가져오기
-        pred = results.pred[0]
+    for i in range(1, len(path)):
+        cv2.line(frame, path[i - 1], path[i], (0, 255, 0), 2)
 
-        for det in pred:
-            cls, bbox = int(det[5].item()), det[:4].tolist()
-            x1, y1, x2, y2 = map(int, bbox)  # bbox는 [x_min, y_min, x_max, y_max] 형식의 좌표를 가지고 있음
+    cv2.imshow('pen tracking', frame)
 
-            if model.names[cls] == 'Pen' and drawing:
-                path.append((x2, y2))
+    key = cv2.waitKey(1) & 0xFF
 
-        # 경로 그리기
-        for i in range(1, len(path)):
-            cv2.line(frame, path[i - 1], path[i], (0, 255, 0), 2)
+    if key == ord('s'):
+        cv2.imwrite('detected_objects.jpg', frame)
+        print("이미지 저장 완료.")
 
-        cv2.imshow('pen tracking', frame)
-
-        # 's' 키를 눌러 현재 화면을 이미지로 저장
-        if cv2.waitKey(1) & 0xFF == ord('s'):
-            cv2.imwrite('detected_objects.jpg', frame)
-            print("이미지 저장 완료.")
-
-        # 'q' 키를 눌러 종료
-        elif cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+    elif key == ord('d'):
+        if d:
+            d = False
+            print("작성정지")
+        else:
+            d = True
+            print("작성시작")
+    elif key == ord('r'):
+        hand = True
+        print("오른손잡이")
+    elif key == ord('l'):
+        hand = False
+        print("왼손잡이")
+    # 'q' 키를 눌러 종료
+    elif key == ord('q'):
+        break
 
 # 카메라 해제 및 창 닫기
 cap.release()
