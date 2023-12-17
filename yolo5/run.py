@@ -30,7 +30,7 @@ while cap.isOpened():
         if conf > 0.5:  # 신뢰도가 0.5 이상인 경우에만 표시
             x1, y1, x2, y2 = map(int, bbox)
             cv2.rectangle(img_with_boxes, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(img_with_boxes, f'x1 : {x1:.2f} y1 : {y1:.2f}', (x1, y1 - 10),
+            cv2.putText(img_with_boxes, f'x2 : {x2:.2f} y2 : {y2:.2f}', (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
     # 검출된 객체가 표시된 프레임 보기
